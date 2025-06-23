@@ -14,8 +14,6 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
-  const { firstName, lastName, email, password, confirmPassword, role } =
-    req.body;
 
   console.log("Incoming req.body:", req.body);
 
@@ -30,6 +28,9 @@ exports.register = async (req, res) => {
         errors: errors.array(),
       });
     }
+
+    const { firstName, lastName, email, password, confirmPassword, role } =
+    req.body;
 
     // check if user already exist
     const userExists = await User.findOne({ email });
