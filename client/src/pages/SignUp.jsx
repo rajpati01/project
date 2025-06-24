@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Leaf } from "lucide-react";
+import { Leaf, Eye, EyeOff } from "lucide-react";
 import axios from "axios";
 
 const SignUpPage = () => {
   const [formErrors, setFormErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -33,8 +35,12 @@ const SignUpPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (formData.password !== formData.confirmPassword) {
-      alert("Password do not match");
+      setFormErrors((prev) => ({
+        ...prev,
+        confirmPassword: "Passwords do not match",
+      }));
       return;
     }
     // signup -  this would call  API
@@ -54,9 +60,9 @@ const SignUpPage = () => {
       if (errors) {
         const formattedErrors = {};
         errors.forEach((error) => {
-          console.log("❗ Error param:", error.param);
+          console.log("❗ Error param:", error.path);
           console.log("❗ Error message:", error.msg);
-          formattedErrors[error.param] = error.msg;
+          formattedErrors[error.path] = error.msg;
         });
         setFormErrors(formattedErrors);
         console.log("Form validation errors:", formattedErrors);
@@ -64,7 +70,7 @@ const SignUpPage = () => {
       // alert(err.response?.data?.message || "Registration failed");
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -164,19 +170,29 @@ const SignUpPage = () => {
               >
                 Password
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                placeholder="Create a password"
-              />
+              <div className="mt-1 relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  placeholder="Create a password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               {formErrors.password && (
-                <p style={{ color: "orange", fontWeight: "bold" }}>
-                  DEBUG → formErrors.password = {formErrors.password}
+                <p className="text-red-500 text-sm mt-1">
+                  {formErrors.password}
                 </p>
               )}
             </div>
@@ -187,16 +203,36 @@ const SignUpPage = () => {
               >
                 Confirm Password
               </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                placeholder="Confirm your password"
-              />
+              <div className="mt-1 relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  placeholder="Confirm your password"
+                />
+                <button
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff
+                      size={18}
+                      onClick={() => setShowConfirmPassword(false)}
+                      className="text-gray-500"
+                    />
+                  ) : (
+                    <Eye
+                      size={18}
+                      onClick={() => setShowConfirmPassword(true)}
+                      className="text-gray-500"
+                    />
+                  )}
+                </button>
+              </div>
               {formErrors.confirmPassword && (
                 <p className="text-red-500 text-sm mt-1">
                   {formErrors.confirmPassword}
