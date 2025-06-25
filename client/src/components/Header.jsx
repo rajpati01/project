@@ -81,7 +81,7 @@ const Header = () => {
                 <span>Login</span>
               </Link>
               <Link
-                to="/signup"
+                to="/register"
                 className="px-4 py-2 rounded-md bg-primary-500 text-white font-medium hover:bg-primary-600 transition-colors"
               >
                 Get Started
@@ -127,7 +127,7 @@ const Header = () => {
                 <span>Login</span>
               </Link>
               <Link
-                to="/register"
+                to="/signup"
                 className="px-4 py-2 rounded-md bg-primary-500 text-white font-medium text-center hover:bg-primary-600 transition-colors"
                 onClick={toggleMenu}
               >

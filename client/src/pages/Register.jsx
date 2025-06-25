@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Leaf, Eye, EyeOff } from "lucide-react";
+import { Leaf, Eye, EyeOff, RedoIcon } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
-const SignUpPage = () => {
+const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -18,7 +18,7 @@ const SignUpPage = () => {
   const [serverErrors, setServerErrors] = useState({});
 
   // Get Redux state and functions
-  const { signup, isLoading, error, clearError } = useAuth();
+  const { register, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
 
   // Client-side validation function
@@ -72,7 +72,7 @@ const SignUpPage = () => {
 
     try {
       // Dispatch signup action through Redux
-      const result = await signup(signupData);
+      const result = await register(signupData);
 
       // Check if signup was successful
       if (result.type === "auth/signupUser/fulfilled") {
@@ -348,4 +348,4 @@ const SignUpPage = () => {
   );
 };
 
-export default SignUpPage;
+export default Register;
