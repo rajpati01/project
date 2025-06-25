@@ -2,38 +2,38 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Leaf, Eye, EyeOff } from "lucide-react";
-import axios from "axios";
+import { useAuth } from "../hooks/useAuth"; //add
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [formErrors, setFormErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+
   const navigate = useNavigate();
+
+  // Get all auth state and functions from Redux
+  const { login, isLoading, error, clearAuthError } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // login - this will call backend API
-    try {
-      const res = await axios.post("http://localhost:3001/api/auth/login", {
-        email,
-        password,
-      });
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("userId", res.data._id);
-      alert("Login successfull");
-      console.log(res);
 
-      navigate(`/profile/${res.data._id}`);
-    } catch (err) {
-      // alert(err.response?.data?.message || "Login failed");
-      console.error("Login Error:", err);
-      const message =
-        err.response?.data?.message || // from server
-        err.message || // generic axios error message
-        "Login request failed";
-      setFormErrors({ general: message });
+    // Clear any previous errors   --add
+    clearAuthError();
+
+    // Dispatch login action through our custom hook
+    const result = await login({ email, password });
+
+    // Check if login was successful
+    if (result.type === "auth/loginUser/fulfilled") {
+      // Store token in localStorage (temporary - we'll improve this later)
+      localStorage.setItem("token", result.payload.token);
+
+      // Handle successful login (redirect, etc.)
+      console.log("Login successful!", result.payload);
+      navigate(`/profile/${result.payload._id}`);
+      // You can add navigation logic here
     }
+    // Errors are automatically handled by Redux state
   };
 
   return (
@@ -106,9 +106,10 @@ const LoginPage = () => {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {formErrors.general && (
-                <p className="text-red-500 text-sm mt-1">
-                  {formErrors.general}
+              {/* Replace formErrors with Redux error state */}
+              {error && (
+                <p className="error-message text-red-500 text-sm mt-1">
+                  {error}
                 </p>
               )}
             </div>
@@ -143,9 +144,10 @@ const LoginPage = () => {
           <div>
             <button
               type="submit"
+              disabled={isLoading} // added
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
-              Sign in
+              {isLoading ? "Logging in..." : "Login"} {/* Show loading state */}
             </button>
           </div>
         </form>

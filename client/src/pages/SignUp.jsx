@@ -1,74 +1,109 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Leaf, Eye, EyeOff } from "lucide-react";
-import axios from "axios";
+import { useAuth } from "../hooks/useAuth";
 
 const SignUpPage = () => {
-  const [formErrors, setFormErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    role: "user",
-  });
+  // Local state for client-side validation errors
+  const [validationErrors, setValidationErrors] = useState({});
+  // State for server-side validation errors
+  const [serverErrors, setServerErrors] = useState({});
+
+  // Get Redux state and functions
+  const { signup, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-    // clear error as user types
-    if (formErrors[name]) {
-      setFormErrors((prevErrors) => ({
-        ...prevErrors,
-        [name]: "",
-      }));
+  // Client-side validation function
+  const validateForm = () => {
+    const errors = {};
+
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
     }
+
+    // Check if required fields are filled
+    if (!firstName.trim()) errors.firstName = "First name is required";
+    if (!lastName.trim()) errors.lastName = "Last name is required";
+    if (!email.trim()) errors.email = "Email is required";
+    if (!password.trim()) errors.password = "Password is required";
+    if (!confirmPassword.trim()) errors.confirmPassword = "Please confirm your password";
+
+    // Basic password validation (you can make this more robust)
+    if (password && password.length < 6) {
+      errors.password = "Password must be at least 6 characters long";
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (formData.password !== formData.confirmPassword) {
-      setFormErrors((prev) => ({
-        ...prev,
-        confirmPassword: "Passwords do not match",
-      }));
+    // Clear previous errors
+    // clearError();
+    setValidationErrors({});
+    setServerErrors({});
+
+    // Run client-side validation
+    if (!validateForm()) {
       return;
     }
-    // signup -  this would call  API
+
+    // Prepare data for API (INCLUDE confirmPassword since server expects it)
+    const signupData = {
+      firstName,
+      lastName,
+      email,
+      password,
+      confirmPassword, // Include this for server validation
+      role: "user" // Add default role if your server expects it
+    };
+
     try {
-      console.log("Submitting formData:", formData);
-      const res = await axios.post(
-        "http://localhost:3001/api/auth/register",
-        formData
-      );
-      localStorage.setItem("token", res.data.tokem);
-      alert("Registration successful");
-      navigate("/login");
-    } catch (err) {
-      const errors = err.response?.data?.errors;
-      console.log(errors);
-      console.log(err.response.data);
-      if (errors) {
-        const formattedErrors = {};
-        errors.forEach((error) => {
-          console.log("❗ Error param:", error.path);
-          console.log("❗ Error message:", error.msg);
-          formattedErrors[error.path] = error.msg;
-        });
-        setFormErrors(formattedErrors);
-        console.log("Form validation errors:", formattedErrors);
+      // Dispatch signup action through Redux
+      const result = await signup(signupData);
+
+      // Check if signup was successful
+      if (result.type === "auth/signupUser/fulfilled") {
+        // Store token temporarily
+        localStorage.setItem("token", result.payload.token);
+        // Navigate to login page
+        navigate("/login");
+      } else if (result.type === "auth/signupUser/rejected") {
+        // Handle server validation errors
+        const errorPayload = result.payload;
+        console.log("Error payload:", errorPayload); // Debug log
+        
+        if (errorPayload && errorPayload.errors && Array.isArray(errorPayload.errors)) {
+          // Format server errors for display
+          const formattedErrors = {};
+          errorPayload.errors.forEach((error) => {
+            console.log("Processing error:", error); // Debug log
+            formattedErrors[error.path] = error.msg;
+          });
+          console.log("Formatted errors:", formattedErrors); // Debug log
+          setServerErrors(formattedErrors);
+        }
       }
-      // alert(err.response?.data?.message || "Registration failed");
+    } catch (err) {
+      console.error("Signup error:", err);
     }
+  };
+
+  // Function to get error message for a field (checks both client and server errors)
+  const getFieldError = (fieldName) => {
+    return validationErrors[fieldName] || serverErrors[fieldName];
   };
 
   return (
@@ -108,17 +143,25 @@ const SignUpPage = () => {
                 name="firstName"
                 type="text"
                 required
-                value={formData.firstName}
-                onChange={handleChange}
+                value={firstName}
+                onChange={(e) => {
+                  setFirstName(e.target.value);
+                  // Clear errors when user starts typing
+                  if (getFieldError('firstName')) {
+                    setValidationErrors(prev => ({...prev, firstName: ''}));
+                    setServerErrors(prev => ({...prev, firstName: ''}));
+                  }
+                }}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                placeholder="Enter your full name"
+                placeholder="Enter your first name"
               />
-              {formErrors.firstName && (
-                <p className="text-red-500 text-sm mt-1">
-                  {formErrors.firstName}
-                </p>
+              {getFieldError('firstName') && (
+                <span className="text-red-500 text-sm mt-1">
+                  {getFieldError('firstName')}
+                </span>
               )}
             </div>
+
             <div>
               <label
                 htmlFor="lastname"
@@ -131,17 +174,24 @@ const SignUpPage = () => {
                 name="lastName"
                 type="text"
                 required
-                value={formData.lastName}
-                onChange={handleChange}
+                value={lastName}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  if (getFieldError('lastName')) {
+                    setValidationErrors(prev => ({...prev, lastName: ''}));
+                    setServerErrors(prev => ({...prev, lastName: ''}));
+                  }
+                }}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
-                placeholder="Enter your full name"
+                placeholder="Enter your last name"
               />
-              {formErrors.lastName && (
-                <p className="text-red-500 text-sm mt-1">
-                  {formErrors.lastName}
-                </p>
+              {getFieldError('lastName') && (
+                <span className="text-red-500 text-sm mt-1">
+                  {getFieldError('lastName')}
+                </span>
               )}
             </div>
+
             <div>
               <label
                 htmlFor="email"
@@ -154,15 +204,24 @@ const SignUpPage = () => {
                 name="email"
                 type="email"
                 required
-                value={formData.email}
-                onChange={handleChange}
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (getFieldError('email')) {
+                    setValidationErrors(prev => ({...prev, email: ''}));
+                    setServerErrors(prev => ({...prev, email: ''}));
+                  }
+                }}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                 placeholder="Enter your email"
               />
-              {formErrors.email && (
-                <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>
+              {getFieldError('email') && (
+                <span className="text-red-500 text-sm mt-1">
+                  {getFieldError('email')}
+                </span>
               )}
             </div>
+
             <div>
               <label
                 htmlFor="password"
@@ -176,9 +235,15 @@ const SignUpPage = () => {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (getFieldError('password')) {
+                      setValidationErrors(prev => ({...prev, password: ''}));
+                      setServerErrors(prev => ({...prev, password: ''}));
+                    }
+                  }}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 pr-10"
                   placeholder="Create a password"
                 />
                 <button
@@ -190,12 +255,13 @@ const SignUpPage = () => {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {formErrors.password && (
-                <p className="text-red-500 text-sm mt-1">
-                  {formErrors.password}
-                </p>
+              {getFieldError('password') && (
+                <span className="text-red-500 text-sm">
+                  {getFieldError('password')}
+                </span>
               )}
             </div>
+
             <div>
               <label
                 htmlFor="confirmPassword"
@@ -209,37 +275,40 @@ const SignUpPage = () => {
                   name="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (getFieldError('confirmPassword')) {
+                      setValidationErrors(prev => ({...prev, confirmPassword: ''}));
+                      setServerErrors(prev => ({...prev, confirmPassword: ''}));
+                    }
+                  }}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 pr-10"
                   placeholder="Confirm your password"
                 />
                 <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
                   tabIndex={-1}
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff
-                      size={18}
-                      onClick={() => setShowConfirmPassword(false)}
-                      className="text-gray-500"
-                    />
-                  ) : (
-                    <Eye
-                      size={18}
-                      onClick={() => setShowConfirmPassword(true)}
-                      className="text-gray-500"
-                    />
-                  )}
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {formErrors.confirmPassword && (
-                <p className="text-red-500 text-sm mt-1">
-                  {formErrors.confirmPassword}
-                </p>
+              {getFieldError('confirmPassword') && (
+                <span className="text-red-500 text-sm">
+                  {getFieldError('confirmPassword')}
+                </span>
               )}
             </div>
           </div>
+
+          {/* Show general server errors from Redux state */}
+          {error && !Object.keys(serverErrors).length && (
+            <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+              {error}
+            </div>
+          )}
 
           <div className="flex items-center">
             <input
@@ -267,9 +336,10 @@ const SignUpPage = () => {
           <div>
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              disabled={isLoading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Account
+              {isLoading ? "Creating Account..." : "Create Account"}
             </button>
           </div>
         </form>
